@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.27004.2002
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Osm2Od", "Osm2Od\Osm2Od.csproj", "{576A9F14-A9B3-4CD2-9B14-F2CD2BBF265F}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{576A9F14-A9B3-4CD2-9B14-F2CD2BBF265F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{576A9F14-A9B3-4CD2-9B14-F2CD2BBF265F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{576A9F14-A9B3-4CD2-9B14-F2CD2BBF265F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{576A9F14-A9B3-4CD2-9B14-F2CD2BBF265F}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {4D7E449B-96B4-42F8-90B8-821B37FEC853}
+	EndGlobalSection
+EndGlobal
