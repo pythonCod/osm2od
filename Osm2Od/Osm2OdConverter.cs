@@ -94,5 +94,16 @@ namespace ConsoleApp1
             return true;
         }
 
+        public string LatToY()
+        {
+            NotImplementedException error = new NotImplementedException();
+            return error.Message;
+        }
+        public string LonToX()
+        {
+            NotImplementedException error = new NotImplementedException();
+            return error.Message;
+        }
+
     }
 }
