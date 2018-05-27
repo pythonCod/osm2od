@@ -23,7 +23,7 @@ namespace Osm2Od
     {
         public Dictionary<ulong, List<node>> waysNodesDict { get; set; }
         public Osm2OdConverter converterHandler { get; set; }
-        public Tuple<Double,Double> originPoint { get; set; }
+        public Tuple<double,double> originPoint { get; set; }
         public Form1()
         {
             InitializeComponent();
@@ -81,13 +81,11 @@ namespace Osm2Od
             {
                 DataRow r1 = dt.NewRow();
 
-                double xRoadNode = roadNodes.lat - this.originPoint.Item1;
-                double yRoadNode = roadNodes.lon - this.originPoint.Item2;
+                double xRoadNode = converterHandler.LonToX(roadNodes.lon - originPoint.Item1);
+                double yRoadNode = converterHandler.LatToY(roadNodes.lat- originPoint.Item2);
 
-                var xyRoadNode = new GeoCoordinate(xRoadNode, yRoadNode);
-
-                r1[0] = xyRoadNode.Latitude;
-                r1[1] = xyRoadNode.Latitude;
+                r1[0] = xRoadNode;
+                r1[1] = yRoadNode;
                 dt.Rows.Add(r1);
             }
             dataSet.Tables.Add(dt);

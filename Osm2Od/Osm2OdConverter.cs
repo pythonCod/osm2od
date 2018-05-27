@@ -9,6 +9,7 @@ using System.Drawing;
 
 namespace ConsoleApp1
 {
+
     public class Osm2OdConverter
     {
 
@@ -27,27 +28,55 @@ namespace ConsoleApp1
         }
 
 
-        public Tuple<Double, Double> calculateBounds()
+        public Tuple<double,double> calculateBounds()
         {
             double minLat = OsmModel.bounds.minlat;
             double maxLat = OsmModel.bounds.maxlat;
             double minLon = OsmModel.bounds.minlon;
             double maxLon = OsmModel.bounds.maxlon;
 
-            var leftBot = new GeoCoordinate(minLat,minLon);
-            var rightTop = new GeoCoordinate(maxLat, maxLon);
-            var leftTop = new GeoCoordinate(maxLat, minLon);
-            var rightBot = new GeoCoordinate(minLat, maxLon);
+            double mapWidth = Distance(minLat,minLon, minLat,maxLon);
+            double mapHeight = Distance(minLat,minLon,maxLat,minLon);
 
-            var mapWidth = rightBot.GetDistanceTo(leftBot);
-            var mapHeight = leftBot.GetDistanceTo(leftTop);
+            //double xO = LonToX(minLon);
+            //double yO = LatToY(minLat);
+            Tuple<double,double> originPoint = new Tuple<double, double>(minLon, minLat);
+
 
 
             Console.WriteLine("Map width : {0}m, Map Height : {1}m ", mapWidth,mapHeight);
-            Tuple<Double, Double> originPoint = new Tuple<double, double>(minLat,minLon);
+            Console.WriteLine("origin x at {0}, origin y at {1}", originPoint.Item1, originPoint.Item2);
             return originPoint;
         }
-  
+
+        /// <summary>
+        /// 
+        /// Measure the destance between two lat,lon points and return the distance in meters
+        /// 
+        ///    https://github.com/googollee/eviltransform/blob/master/csharp/EvilTransform.cs
+        ///    License : https://github.com/googollee/eviltransform/blob/master/LICENSE
+        /// 
+        /// </summary>
+        /// <param name="latA"> first point lat </param>
+        /// <param name="lngA"> first point lng </param>
+        /// <param name="latB"> second point lat </param>
+        /// <param name="lngB"> second point lon</param>
+        /// <returns></returns>
+        public double Distance(double latA, double lngA, double latB, double lngB)
+        {
+            double earthR = 6371000;
+            double x = Math.Cos(latA * Math.PI / 180) * Math.Cos(latB * Math.PI / 180) * Math.Cos((lngA - lngB) * Math.PI / 180);
+            double y = Math.Sin(latA * Math.PI / 180) * Math.Sin(latB * Math.PI / 180);
+            double s = x + y;
+            if (s > 1)
+                s = 1;
+            if (s < -1)
+                s = -1;
+            double alpha = Math.Acos(s);
+            var distance = alpha * earthR;
+            return distance;
+        }
+
         public Dictionary<ulong, List<node>> convertRoads()
         {
             int numberWaysInModel = this.OsmModel.way.Count;
@@ -94,15 +123,13 @@ namespace ConsoleApp1
             return true;
         }
 
-        public string LatToY()
+        public double LatToY(double lat)
         {
-            NotImplementedException error = new NotImplementedException();
-            return error.Message;
+            return Math.Log( Math.Tan( (lat+90) / 360*Math.PI) ) / Math.PI*180;
         }
-        public string LonToX()
+        public double LonToX(double lon)
         {
-            NotImplementedException error = new NotImplementedException();
-            return error.Message;
+            return (lon) / (180 * Math.PI);
         }
 
     }
