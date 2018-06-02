@@ -21,7 +21,7 @@ namespace Osm2Od
 {
     public partial class Form1 : Form
     {
-        public Dictionary<ulong, List<node>> waysNodesDict { get; set; }
+        public Dictionary<way, List<node>> waysNodesDict { get; set; }
         public Osm2OdConverter converterHandler { get; set; }
         public Tuple<double,double> originPoint { get; set; }
         public Form1()
@@ -37,8 +37,8 @@ namespace Osm2Od
 
         void comboBox1_SelectedIndexChanged(object sender, EventArgs e)
         {
-            List<node> selectedWayNodes = ((KeyValuePair<ulong,List<node>>)comboBox1.SelectedItem).Value;
-            ulong selectedWay = ((KeyValuePair<ulong, List<node>>)comboBox1.SelectedItem).Key;
+            List<node> selectedWayNodes = ((KeyValuePair<way,List<node>>)comboBox1.SelectedItem).Value;
+            way selectedWay = ((KeyValuePair<way, List<node>>)comboBox1.SelectedItem).Key;
             Console.WriteLine("Nicely Done You Imported This Way Data");
             this.graphRoad(selectedWay);
         }
@@ -69,7 +69,7 @@ namespace Osm2Od
 
         }
 
-        public void graphRoad(ulong road)
+        public void graphRoad(way road)
         {
             //populate dataset with some demo data..
             DataSet dataSet = new DataSet();
@@ -96,13 +96,9 @@ namespace Osm2Od
             chart.DataSource = dataSet.Tables[0];
             chart.Width = 1300;
             chart.Height = 800;
-            //create serie...
-
-
-            //databind...
             chart.DataBind();
-            //save result...
-            //chart.SaveImage(@"c:\myChart.png", ChartImageFormat.Png);
+
+
         }
     }
 }
