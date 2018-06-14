@@ -56,21 +56,21 @@ namespace Osm2Od
             this.chart1.Name = "chart1";
             Series serie1 = new Series();
             serie1.Name = "Seri1";
-            serie1.Color = Color.FromArgb(112, 255, 200);
+            serie1.Color = Color.Red;
             serie1.BorderColor = Color.FromArgb(164, 164, 164);
-            serie1.ChartType = SeriesChartType.Point;
+            serie1.ChartType = SeriesChartType.Line;
             serie1.BorderDashStyle = ChartDashStyle.Solid;
             serie1.BorderWidth = 1;
             serie1.ShadowColor = Color.FromArgb(128, 128, 128);
             serie1.ShadowOffset = 1;
-            serie1.IsValueShownAsLabel = true;
+            serie1.IsValueShownAsLabel = false;
             serie1.XValueMember = "x";
             serie1.YValueMembers = "y";
+            
             serie1.Font = new Font("Tahoma", 8.0f);
             serie1.BackSecondaryColor = Color.FromArgb(0, 102, 153);
             serie1.LabelForeColor = Color.FromArgb(100, 100, 100);
             this.chart1.Series.Add(serie1);
-            this.chart1.Size = new System.Drawing.Size(550, 500);
             this.chart1.TabIndex = 1;
             this.chart1.Text = "chart1";
             //////////////////////////////////////
@@ -83,6 +83,10 @@ namespace Osm2Od
             ca.BorderDashStyle = ChartDashStyle.Solid;
             ca.AxisX = new Axis();
             ca.AxisY = new Axis();
+            ca.AxisX.Maximum = 5000;
+            ca.AxisY.Maximum = 2000;
+            ca.AxisX.Minimum = -6000;
+            ca.AxisY.Minimum = -1000;
             this.chart1.ChartAreas.Add(ca);
             //databind...
             // 

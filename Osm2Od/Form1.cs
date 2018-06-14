@@ -39,7 +39,7 @@ namespace Osm2Od
         {
             List<node> selectedWayNodes = ((KeyValuePair<way,List<node>>)comboBox1.SelectedItem).Value;
             way selectedWay = ((KeyValuePair<way, List<node>>)comboBox1.SelectedItem).Key;
-            Console.WriteLine("Nicely Done You Imported This Way Data");
+            Console.WriteLine("Nicely Done You Imported Way Number {0} Data", selectedWay.id);
             this.graphRoad(selectedWay);
         }
 
@@ -65,6 +65,7 @@ namespace Osm2Od
                 converterHandler.OsmModel = osmResult;
                 this.originPoint = converterHandler.calculateBounds();
                 this.waysNodesDict = converterHandler.convertRoads();
+                
             }
 
         }
@@ -77,12 +78,22 @@ namespace Osm2Od
             dt.Columns.Add("x", typeof(double));
             dt.Columns.Add("y", typeof(double));
 
+            double xMax = MercatorProjection.lonToX(converterHandler.maxLon);
+            double yMax = MercatorProjection.latToY(converterHandler.maxLat);
+            double xMin = MercatorProjection.lonToX(converterHandler.minLon);
+            double yMin = MercatorProjection.latToY(converterHandler.minLat);
+
+            double scale_x = (xMax - xMin) / 200;
+            double scale_y = (yMax - yMin) / 200;
+
+            double scale = Math.Max(scale_x,scale_y);
+
             foreach (node roadNodes in this.waysNodesDict[road])
             {
                 DataRow r1 = dt.NewRow();
 
-                double xRoadNode = converterHandler.LonToX(roadNodes.lon - originPoint.Item1);
-                double yRoadNode = converterHandler.LatToY(roadNodes.lat- originPoint.Item2);
+                double xRoadNode = scale * MercatorProjection.lonToX(roadNodes.lon - originPoint.Item1);
+                double yRoadNode = scale * MercatorProjection.latToY(roadNodes.lat- originPoint.Item2);
 
                 r1[0] = xRoadNode;
                 r1[1] = yRoadNode;

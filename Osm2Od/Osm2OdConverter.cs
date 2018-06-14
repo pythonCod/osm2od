@@ -7,6 +7,7 @@ using System.Windows.Forms.DataVisualization.Charting;
 using System.Data;
 using System.Drawing;
 
+
 namespace ConsoleApp1
 {
 
@@ -29,13 +30,16 @@ namespace ConsoleApp1
             get;set;
         }
 
-
+        public double  minLat { get; set; }
+        public double maxLat { get; set; }
+        public double minLon { get; set; }
+        public double maxLon { get; set; }
         public Tuple<double,double> calculateBounds()
         {
-            double minLat = OsmModel.bounds.minlat;
-            double maxLat = OsmModel.bounds.maxlat;
-            double minLon = OsmModel.bounds.minlon;
-            double maxLon = OsmModel.bounds.maxlon;
+            this.minLat = OsmModel.bounds.minlat;
+            this.maxLat = OsmModel.bounds.maxlat;
+            this.minLon = OsmModel.bounds.minlon;
+            this.maxLon = OsmModel.bounds.maxlon;
 
             double mapWidth = Distance(minLat,minLon, minLat,maxLon);
             double mapHeight = Distance(minLat,minLon,maxLat,minLon);
@@ -66,7 +70,7 @@ namespace ConsoleApp1
         /// <returns></returns>
         public double Distance(double latA, double lngA, double latB, double lngB)
         {
-            double earthR = 6371000;
+            double earthR = 6378137;
             double x = Math.Cos(latA * Math.PI / 180) * Math.Cos(latB * Math.PI / 180) * Math.Cos((lngA - lngB) * Math.PI / 180);
             double y = Math.Sin(latA * Math.PI / 180) * Math.Sin(latB * Math.PI / 180);
             double s = x + y;
@@ -152,46 +156,69 @@ namespace ConsoleApp1
                 if (road.Value.Count >= 3 && road.Key.tag.Find(highWayTag => highWayTag.k == "highway") != null)
                 {
                     node nextNode = GetNext<node>(road.Value, road.Value[0]);
-                    Queue<double> junctionPointsPositions = ApplyLSG(road.Value);
+                    var headingsAndDistances = ApplyLSG(road.Value);
+                    //curvature/ distance curve will suffer from some data inhereted inaccuricies
+                    //we need to apply Gaussian smoothing filter to enhance the curve accuracy. 
+
 
                 }
                 else
                 {
                     Console.WriteLine("[Segmentation] object {0} is a simple line or has no highway tag", road.Key.id);
                 }
+                Console.WriteLine("Heading/distance calculated, transforming to curvature/distance domain");
             }
-            //double a = Distance(node1.lat,node1.lon,node2.lat,node2.lon);
-            //double b = Distance(node2.lat,node2.lon,node3.lat,node3.lon);
-            //double c = Distance(node2.lat, node2.lon, node3.lat, node3.lon);
-            //double s = (a + b + c) / 2;
-            //double triangleArea =  Math.Sqrt(s * (s - a) * (s - b) * (s - c));
         }
 
-        private Queue<double> ApplyLSG(List<node> wayNodes)
+        private (double heading,double distance)[] ApplyLSG(List<node> wayNodes)
         {
             Queue<double> junctionPointsPositions = new Queue<double>();
-            Queue<double> junctionTriangles = new Queue<double>();
-
+            var headingAndDistance = new(double distance, double curvature)[wayNodes.Count];
             for (int i = 0; i < wayNodes.Count-1; i++)
             {
-                if (i != 0)
+                if (i != 0 )
                 {
                     node p_i = wayNodes[i];
                     node p_p = wayNodes[i - 1];
                     node p_n = wayNodes[i + 1];
 
-                    double a = Distance(p_p.lat, p_p.lon, p_i.lat, p_i.lon);
-                    double b = Distance(p_i.lat, p_i.lon, p_n.lat, p_n.lon);
-                    double c = Distance(p_p.lat, p_p.lon, p_n.lat, p_n.lon);
-                    double s = (a + b + c) / 2.0;
-                    double triangleArea = Math.Sqrt(s * (s - a) * (s - b) * (s - c));
-
-                    junctionTriangles.Enqueue(triangleArea);
-                    if (junctionTriangles.Max() == triangleArea && triangleArea != 0)
+                    //find each point heading change in radians, calculate the distance traveled along the road
+                    // by using simple heading change (theta)/ distance traveled on the imaginary arc s == 1/R
+                    // which is the curvature by the definition of clothoids. 
+                    double traveledDistance = Distance(p_p.lat, p_p.lon,p_i.lat,p_i.lon) + (1/2)* Distance(p_i.lat,p_i.lon,p_n.lat,p_n.lon);
+                    double dy = Math.Sin(p_p.lon - p_i.lon) * Math.Cos(p_i.lat);
+                    double dx = Math.Cos(p_p.lat) * Math.Sin(p_i.lat) - Math.Sin(p_p.lat) * Math.Cos(p_i.lat) * Math.Cos(p_i.lon-p_p.lon); ;
+                    var heading = Math.Atan2(dy, dx);
+                    //assign the same values to the first point
+                    if (i == 1)
                     {
-                        Console.WriteLine("junction point at point {0} found", i);
-                        junctionPointsPositions.Enqueue(i);
+                        var distanceTraveled = Distance(p_p.lat, p_p.lon, p_i.lat, p_i.lon) + Distance(p_i.lat, p_i.lon, p_n.lat, p_n.lon)/2;
+                        headingAndDistance[i].distance = Distance(p_p.lat, p_p.lon, p_i.lat, p_i.lon);
+                        headingAndDistance[i].curvature = heading / distanceTraveled;
+                        headingAndDistance[0].curvature = headingAndDistance[i].curvature;
+                        headingAndDistance[0].distance = 0;
                     }
+                    else if (i == wayNodes.Count - 2)
+                    {
+                        double traveledDistanceLast = Distance(p_p.lat, p_p.lon, p_i.lat, p_i.lon)/2 + Distance(p_i.lat, p_i.lon, p_n.lat, p_n.lon)/2;
+                        double dxLast = LonToX(p_i.lon) - LonToX(p_p.lon);
+                        double dyLast = LatToY(p_i.lat) - LatToY(p_p.lat);
+                        var headingLast = Math.Atan2(dyLast, dxLast);
+                        headingAndDistance[i].distance = Distance(p_p.lat, p_p.lon, p_i.lat, p_i.lon) + headingAndDistance[i-1].distance;
+                        headingAndDistance[i].curvature = headingLast / traveledDistanceLast;
+                        headingAndDistance[i + 1].distance = headingAndDistance[i].distance + Distance(p_i.lat, p_i.lon, p_n.lat, p_n.lon);
+                    }
+                    else
+                    {
+                        traveledDistance = Distance(p_p.lat, p_p.lon, p_i.lat, p_i.lon) / 2 + Distance(p_i.lat, p_i.lon, p_n.lat, p_n.lon) / 2;
+                        headingAndDistance[i].distance = Distance(p_p.lat, p_p.lon, p_i.lat, p_i.lon) + headingAndDistance[i-1].distance;
+                        headingAndDistance[i].curvature = heading / traveledDistance;
+                    }
+
+
+
+
+
                 }
                 else
                 {
@@ -200,9 +227,10 @@ namespace ConsoleApp1
 
             }
 
-            return junctionPointsPositions;
+            return headingAndDistance;
 
         }
+
 
         private static T GetNext<T>(IEnumerable<T> list, T current)
         {
