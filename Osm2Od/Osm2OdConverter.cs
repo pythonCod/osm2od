@@ -6,17 +6,18 @@ using System.Device.Location;
 using System.Windows.Forms.DataVisualization.Charting;
 using System.Data;
 using System.Drawing;
-
+using System.Xml.Serialization;
 
 namespace ConsoleApp1
 {
 
-    public class Osm2OdConverter
+    public  class Osm2OdConverter
     {
 
         public osm OsmModel { get; set; }
 
-        public OpenDrive OdModel;
+        public OpenDRIVE OdModel { get; set; }
+
 
         public List<node> numberNodesInWay
         {
@@ -118,12 +119,6 @@ namespace ConsoleApp1
         /// the hdg values based on calculate Heading function 
         /// </summary>
         /// <returns>OdModel : an Open drive object contain the converted information</returns>
-        public OpenDrive convertRoadsFromOsmToOd()
-        {
-
-            OpenDrive OdModel = new OpenDrive();
-            return this.OdModel;
-        }
 
         public bool calculateHeading()
         {
@@ -150,7 +145,11 @@ namespace ConsoleApp1
         public void SegmentOsmRoads(Dictionary<way, List<node>> wayNodesDict)
         {
             
-            IList<double> filteredValues = new List<double>(); 
+            IList<double> filteredValues = new List<double>();
+            OpenDRIVE od = new OpenDRIVE();
+            int p = wayNodesDict.Count();
+            od.road = new OpenDRIVERoad[p];
+            int c = 0;
             foreach (KeyValuePair<way,List<node>> road in wayNodesDict)
             {
                 // segmentation works on a set of points, which are 3 or more than 3 consecutive points, if otherwise found
@@ -161,17 +160,20 @@ namespace ConsoleApp1
                     var headingsAndDistances = ApplyLSG(road.Value);
                     double[] curvatureVector = new double[road.Value.Count];
                     double[] distanceVector = new double[road.Value.Count];
+                    double[] headingVector = new double[road.Value.Count];
                     double[] emaValues = new double[road.Value.Count];
                     double numberOfnodes = road.Value.Count;
+
+                    
+                    //od.road[c] = odRoad;
+                    
+
                     for (int x = 0; x < headingsAndDistances.Count(); x++)
                     {
                         //TODO: replace distances with headings, it is reversed.
                         curvatureVector[x] = (headingsAndDistances[x].distance);
                         Console.WriteLine("Radius of curvature for point {0} is {1}", x, curvatureVector[x]);
                     }
-
-
-
                     //curvature/ distance curve will suffer from some data inhereted inaccuricies
                     //we need to apply smoothing filter to enhance the curve accuracy. Exponential 
                     //moving avarage filter will be used. [SMA : Simple moving avarage for first point only]
@@ -184,21 +186,112 @@ namespace ConsoleApp1
                         distanceVector[i] = headingsAndDistances[i].heading;
                     }
 
-                    Console.WriteLine("Done");
-                    CurvatureDistanceChart curvatureDistanceChart = new CurvatureDistanceChart(curvatureVector, distanceVector, emaValues);
+                    SegmentationHelper segmentationHandler = new SegmentationHelper(distanceVector, curvatureVector);
+                   Tuple<List<Osm2Od.Point>,List<int>> junctionPoints = SegmentationHelper.DouglasPeuckerReduction(segmentationHandler.curvaturDistanceDomain,Math.Pow(.07,2));
+                    double[] junction_Points_x = new double[junctionPoints.Item2.Count()];
+                    double[] junction_Points_y = new double[junctionPoints.Item2.Count()];
+                    for (int i = 0; i< junctionPoints.Item1.Count(); i++)
+                    {
+                        junction_Points_y[i] = junctionPoints.Item1[i].Y;
+                        junction_Points_x[i] = junctionPoints.Item1[i].X;
+                    }
+                    Console.WriteLine("Road {0} junction points calculated, {1} found", road.Key.id, junctionPoints.Item1.Count());
+                    //segment the sections according to line deviataion, if line stills withing our given tolerance, with curvature value 
+                    //==0 or near zero, it will be considered a line, if curvature!=0, it is a curve, if != constant value it is a spiral
+                    List<double> slopes = getRoadPrimativeGeometries(junction_Points_x, junction_Points_y);
+                    OpenDRIVERoad odRoad = convertRoadsFromOsmToOd(road, distanceVector, curvatureVector, junction_Points_x, junction_Points_y);
+                    odRoad.planView = new OpenDRIVERoadGeometry[slopes.Count()];
+                    //create the geometry attribute of the road
+                    for (int i = 0; i< slopes.Count(); i++)
+                    {
+                        OpenDRIVERoadGeometry roadGeometry = new OpenDRIVERoadGeometry();
+                        roadGeometry.Items = new object[1];
+                        roadGeometry.s = distanceVector[junctionPoints.Item2[i]];
+                        roadGeometry.x = MercatorProjection.lonToX(road.Value[junctionPoints.Item2[i]].lon) - MercatorProjection.lonToX(minLon);
+                        roadGeometry.y = MercatorProjection.latToY(road.Value[junctionPoints.Item2[i]].lat) - MercatorProjection.latToY(minLat);
+                        roadGeometry.hdg = headingVector[junctionPoints.Item2[i]];
+                        roadGeometry.length = distanceVector[junctionPoints.Item2[i + 1]];
+                        //TODO: SET CURVATURE TOLERANCE HERE
+                        if (slopes[i] <= .005 && curvatureVector[junctionPoints.Item2[i]] <=.005)
+                        {
+                            OpenDRIVERoadGeometryLine line = new OpenDRIVERoadGeometryLine();
+                            roadGeometry.Items[0] = line;
+                        }
+                        if (slopes[i] <= .005 && curvatureVector[junctionPoints.Item2[i]] > .005)
+                        {
+                            OpenDRIVERoadGeometryArc arc = new OpenDRIVERoadGeometryArc();
+                            arc.curvature = curvatureVector[junctionPoints.Item2[i]];
+                            roadGeometry.Items[0] = arc;
+                        }
+                        if (slopes[i] > .005)
+                        {
+                            OpenDRIVERoadGeometrySpiral spiral = new OpenDRIVERoadGeometrySpiral();
+                            spiral.curvStart = curvatureVector[junctionPoints.Item2[i]];
+                            spiral.curvEnd = curvatureVector[junctionPoints.Item2[i+1]];
+                            roadGeometry.Items[0] = spiral;
+                        }
+                        odRoad.planView[i] = roadGeometry;
+                    }
+                    od.road[c] = odRoad;
+                    CurvatureDistanceChart curvatureDistanceChart = new CurvatureDistanceChart(curvatureVector, distanceVector, junction_Points_x, junction_Points_y);
+
                 }
                 else
                 {
                     Console.WriteLine("[Segmentation] object {0} is a simple line or has no highway tag", road.Key.id);
                 }
                 Console.WriteLine("Heading/distance calculated, transforming to curvature/distance domain");
+                c++;
             }
+            //deserilize to OpenDrive.xodr.
+            XmlSerializer odDeserilizer = new XmlSerializer(typeof(OpenDRIVE));
+            var xml = "";
+
+            using (var sww = new System.IO.StringWriter())
+            {
+                using (System.Xml.XmlWriter writer = System.Xml.XmlWriter.Create(sww))
+                {
+                    odDeserilizer.Serialize(writer, od);
+                    xml = sww.ToString(); 
+                }
+            }
+
+        }
+        private List<double> getRoadPrimativeGeometries(double[] junction_Points_x, double[] junction_Points_y)
+        {
+            double[] xData = new double[2];
+            double[] yData = new double[2];
+            List<double> segmentsSlopeList = new List<double>();
+
+              int vectorLength = junction_Points_x.Count();
+            for (int i = 0; i < vectorLength-1; i++)
+            {
+                double nextXPoint = GetNext<double>(junction_Points_x, junction_Points_x[i]);
+                double nextYPoint = GetNext<double>(junction_Points_y, junction_Points_y[i]);
+                xData[0] = junction_Points_x[i];
+                xData[1] = nextXPoint;
+                yData[0] = junction_Points_y[i];
+                yData[1] = nextYPoint;
+
+                Tuple<double, double> slopeInterceptData = MathNet.Numerics.Fit.Line(xData, yData);
+                segmentsSlopeList.Add(slopeInterceptData.Item2);
+
+            }
+            return segmentsSlopeList;
         }
 
-        private (double heading,double distance)[] ApplyLSG(List<node> wayNodes)
+        private OpenDRIVERoad convertRoadsFromOsmToOd(KeyValuePair<way, List<node>> road, double[] distanceVector, double[] curvatureVector, double[] junction_Points_x, double[] junction_Points_y)
+        {
+            OpenDRIVERoad odRoad = new OpenDRIVERoad();
+            odRoad= getRoadAttributes(road, odRoad, distanceVector);
+            return odRoad;
+
+        }
+
+        private (double heading,double distance,double hdg)[] ApplyLSG(List<node> wayNodes)
         {
             Queue<double> junctionPointsPositions = new Queue<double>();
-            var headingAndDistance = new(double distance, double curvature)[wayNodes.Count];
+            var headingAndDistance = new(double distance, double curvature, double heading)[wayNodes.Count];
             for (int i = 0; i < wayNodes.Count-1; i++)
             {
                 if (i != 0 )
@@ -224,7 +317,7 @@ namespace ConsoleApp1
                     //double dy = Math.Sin(p_p.lon - p_i.lon) * Math.Cos(p_i.lat);
                     //double dx = Math.Cos(p_p.lat) * Math.Sin(p_i.lat) - Math.Sin(p_p.lat) * Math.Cos(p_i.lat) * Math.Cos(p_i.lon-p_p.lon); ;
                     var heading_i = Math.Atan2(dy_i, dx_i);
-                    var heading_n = Math.Atan2(dy_n, dy_i);
+                    var heading_n = Math.Atan2(dy_n, dx_n);
                     var headingChange = heading_n - heading_i;
                     //assign the same values to the first point
                     if (i == 1)
@@ -232,7 +325,9 @@ namespace ConsoleApp1
                         var distanceTraveled = Distance(p_p.lat, p_p.lon, p_i.lat, p_i.lon) + Distance(p_i.lat, p_i.lon, p_n.lat, p_n.lon)/2;
                         headingAndDistance[i].distance = Distance(p_p.lat, p_p.lon, p_i.lat, p_i.lon);
                         headingAndDistance[i].curvature = headingChange / distanceTraveled;
+                        headingAndDistance[i].heading = headingChange;
                         headingAndDistance[0].curvature = headingAndDistance[i].curvature;
+                        headingAndDistance[0].heading = headingChange;
                         headingAndDistance[0].distance = 0;
                     }
                     else if (i == wayNodes.Count - 2)
@@ -251,6 +346,7 @@ namespace ConsoleApp1
                         headingAndDistance[i].distance = Distance(p_p.lat, p_p.lon, p_i.lat, p_i.lon) + headingAndDistance[i-1].distance;
                        // headingAndDistance[i].curvature = headingLast - headingAndDistance[i - 1].curvature / traveledDistanceLast;
                         headingAndDistance[i].curvature = headingChangeLast / traveledDistanceLast;
+                        headingAndDistance[i].heading = headingChangeLast;
                         headingAndDistance[i + 1].distance = headingAndDistance[i].distance + Distance(p_i.lat, p_i.lon, p_n.lat, p_n.lon);
                     }
                     else
@@ -258,13 +354,9 @@ namespace ConsoleApp1
                         traveledDistance = Distance(p_p.lat, p_p.lon, p_i.lat, p_i.lon) / 2 + Distance(p_i.lat, p_i.lon, p_n.lat, p_n.lon) / 2;
                         headingAndDistance[i].distance = Distance(p_p.lat, p_p.lon, p_i.lat, p_i.lon) + headingAndDistance[i-1].distance;
                         headingAndDistance[i].curvature = headingChange / traveledDistance;
+                        headingAndDistance[i].heading = headingChange;
                         //headingAndDistance[i].curvature = heading - headingAndDistance[i-1].curvature / traveledDistance;
                     }
-
-
-
-
-
                 }
                 else
                 {
@@ -302,5 +394,20 @@ namespace ConsoleApp1
             }
         }
 
+        private static OpenDRIVERoad getRoadAttributes(KeyValuePair<way, List<node>> road, OpenDRIVERoad odRoad, double[] distanceVector)
+        {
+            if(road.Key.tag.Find(name => name.k == "name") != null)
+            {
+                int nameTagIndex = road.Key.tag.FindIndex(name => name.k == "name");
+                odRoad.name = road.Key.tag[nameTagIndex].v;
+            }
+            odRoad.id = road.Key.id.ToString();
+            odRoad.length = distanceVector.Last();
+            //TO
+            return odRoad;
+            return odRoad;
+        }
     }
+
 }
+

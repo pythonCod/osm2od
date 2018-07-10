@@ -55,17 +55,17 @@
             series1.MarkerColor = System.Drawing.Color.Red;
             this.chart1.Series.Add(series1);
 
-            //series2.ChartArea = "ChartArea1";
-            //series2.ChartType = System.Windows.Forms.DataVisualization.Charting.SeriesChartType.Line;
-            //series2.Legend = "Legend1";
-            //series2.Name = "Filtered Curvature";
-            //series2.Points.DataBindXY(this.distanceVector, this.emaValues);
-            //series2.MarkerStyle = System.Windows.Forms.DataVisualization.Charting.MarkerStyle.Circle;
-            //series2.MarkerColor = System.Drawing.Color.Blue;
-            //this.chart1.Series.Add(series2);
-            //this.chart1.Size = new System.Drawing.Size(832, 505);
-            //this.chart1.TabIndex = 0;
-            //this.chart1.Text = "chart1";
+            series2.ChartArea = "ChartArea1";
+            series2.ChartType = System.Windows.Forms.DataVisualization.Charting.SeriesChartType.Point;
+            series2.Legend = "Legend1";
+            series2.Name = "Junctions";
+            series2.Points.DataBindXY(this.junctionPoints_x, this.junctionPoints_y);
+            series2.MarkerStyle = System.Windows.Forms.DataVisualization.Charting.MarkerStyle.Triangle;
+            series2.MarkerColor = System.Drawing.Color.Green;
+            this.chart1.Series.Add(series2);
+            this.chart1.Size = new System.Drawing.Size(832, 505);
+            this.chart1.TabIndex = 0;
+            this.chart1.Text = "chart1";
             // 
             // CurvatureDistanceChart
             // 

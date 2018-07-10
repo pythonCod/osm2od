@@ -16,12 +16,13 @@ namespace Osm2Od
 
         public double[] curvatureVector { get; set; }
         public double[] distanceVector { get; set; }
-        public double[] emaValues { get; set; }
+        public double[] junctionPoints_x { get; set; }
+        public double[] junctionPoints_y { get; set; }
         Chart curvatureDistanceChart;
-        public CurvatureDistanceChart(double[] curvatureVector, double[] distanceVector, double[] ema)
+        public CurvatureDistanceChart(double[] curvatureVector, double[] distanceVector, double[] junctionPoints_x , double[] junctionPoints_y)
         {
             this.components = new System.ComponentModel.Container();
-            bindDataToChart(curvatureVector, distanceVector,ema);
+            bindDataToChart(curvatureVector, distanceVector, junctionPoints_x,junctionPoints_y);
             InitializeComponent();
             Application.Run(this);
 
@@ -52,11 +53,12 @@ namespace Osm2Od
 
         }
 
-        public void bindDataToChart(double[] curvatureVector, double[] distanceVector, double[] ema)
+        public void bindDataToChart(double[] curvatureVector, double[] distanceVector, double[] junctionPoints_x, double[] junctionPoints_y)
         {
             this.curvatureVector = curvatureVector;
             this.distanceVector = distanceVector;
-            this.emaValues = ema;
+            this.junctionPoints_x = junctionPoints_x;
+            this.junctionPoints_y = junctionPoints_y;
         }
 
     }
