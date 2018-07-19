@@ -4396,9 +4396,9 @@ public partial class OpenDRIVERoadGeometry {
             this.itemsField = value;
         }
     }
-    
+
     /// <remarks/>
-    [System.Xml.Serialization.XmlAttributeAttribute()]
+    [XmlAttribute(DataType = "double", AttributeName = "s")]
     public double s {
         get {
             return this.sField;
@@ -4418,9 +4418,9 @@ public partial class OpenDRIVERoadGeometry {
             this.sFieldSpecified = value;
         }
     }
-    
+
     /// <remarks/>
-    [System.Xml.Serialization.XmlAttributeAttribute()]
+    [System.Xml.Serialization.XmlAttributeAttribute("x")]
     public double x {
         get {
             return this.xField;
@@ -4442,7 +4442,7 @@ public partial class OpenDRIVERoadGeometry {
     }
     
     /// <remarks/>
-    [System.Xml.Serialization.XmlAttributeAttribute()]
+   [System.Xml.Serialization.XmlAttributeAttribute("y")]
     public double y {
         get {
             return this.yField;
@@ -4462,9 +4462,9 @@ public partial class OpenDRIVERoadGeometry {
             this.yFieldSpecified = value;
         }
     }
-    
+
     /// <remarks/>
-    [System.Xml.Serialization.XmlAttributeAttribute()]
+    [System.Xml.Serialization.XmlAttributeAttribute("hdg")]
     public double hdg {
         get {
             return this.hdgField;
@@ -4486,7 +4486,7 @@ public partial class OpenDRIVERoadGeometry {
     }
     
     /// <remarks/>
-    [System.Xml.Serialization.XmlAttributeAttribute()]
+    [System.Xml.Serialization.XmlAttributeAttribute("length")]
     public double length {
         get {
             return this.lengthField;

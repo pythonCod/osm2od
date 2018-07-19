@@ -26,6 +26,8 @@ namespace ConsoleApp1
 
 
 
+
+
         public Dictionary<way, List<node>> wayPointsDictionary
         {
             get;set;
@@ -159,6 +161,7 @@ namespace ConsoleApp1
                     node nextNode = GetNext<node>(road.Value, road.Value[0]);
                     var headingsAndDistances = ApplyLSG(road.Value);
                     double[] curvatureVector = new double[road.Value.Count];
+                    double[] curvatureVector_filtered = new double[road.Value.Count];
                     double[] distanceVector = new double[road.Value.Count];
                     double[] headingVector = new double[road.Value.Count];
                     double[] emaValues = new double[road.Value.Count];
@@ -185,9 +188,26 @@ namespace ConsoleApp1
                     {
                         distanceVector[i] = headingsAndDistances[i].heading;
                     }
+                    //filter data, exponential moving average filter
+                    var paramterHandler = new getParamter();
+                    paramterHandler.setAlpha(0.5);
+                    double alpha = paramterHandler.getAlpha();
+                    int curvatureIndx = 0;
+                    foreach (double curvatureVal in curvatureVector)
+                    {
+                        if (curvatureIndx==0)
+                        {
+                            curvatureVector_filtered[0] = curvatureVal;
+                        }
+                        else
+                        {
+                            curvatureVector_filtered[curvatureIndx] = alpha * curvatureVector[curvatureIndx] + (1 - alpha) * curvatureVector_filtered[curvatureIndx - 1];
+                        }
+                        curvatureIndx++;
+                    }
 
-                    SegmentationHelper segmentationHandler = new SegmentationHelper(distanceVector, curvatureVector);
-                   Tuple<List<Osm2Od.Point>,List<int>> junctionPoints = SegmentationHelper.DouglasPeuckerReduction(segmentationHandler.curvaturDistanceDomain,Math.Pow(.07,2));
+                    SegmentationHelper segmentationHandler = new SegmentationHelper(distanceVector, curvatureVector_filtered);
+                   Tuple<List<Osm2Od.Point>,List<int>> junctionPoints = SegmentationHelper.DouglasPeuckerReduction(segmentationHandler.curvaturDistanceDomain,Math.Pow(.007,1));
                     double[] junction_Points_x = new double[junctionPoints.Item2.Count()];
                     double[] junction_Points_y = new double[junctionPoints.Item2.Count()];
                     for (int i = 0; i< junctionPoints.Item1.Count(); i++)
@@ -199,7 +219,7 @@ namespace ConsoleApp1
                     //segment the sections according to line deviataion, if line stills withing our given tolerance, with curvature value 
                     //==0 or near zero, it will be considered a line, if curvature!=0, it is a curve, if != constant value it is a spiral
                     List<double> slopes = getRoadPrimativeGeometries(junction_Points_x, junction_Points_y);
-                    OpenDRIVERoad odRoad = convertRoadsFromOsmToOd(road, distanceVector, curvatureVector, junction_Points_x, junction_Points_y);
+                    OpenDRIVERoad odRoad = convertRoadsFromOsmToOd(road, distanceVector, curvatureVector_filtered, junction_Points_x, junction_Points_y);
                     odRoad.planView = new OpenDRIVERoadGeometry[slopes.Count()];
                     //create the geometry attribute of the road
                     for (int i = 0; i< slopes.Count(); i++)
@@ -211,29 +231,36 @@ namespace ConsoleApp1
                         roadGeometry.y = MercatorProjection.latToY(road.Value[junctionPoints.Item2[i]].lat) - MercatorProjection.latToY(minLat);
                         roadGeometry.hdg = headingVector[junctionPoints.Item2[i]];
                         roadGeometry.length = distanceVector[junctionPoints.Item2[i + 1]];
-                        //TODO: SET CURVATURE TOLERANCE HERE
-                        if (slopes[i] <= .005 && curvatureVector[junctionPoints.Item2[i]] <=.005)
+
+                        //TODO: SET CURVATURE TOLERANCE HER
+                        paramterHandler.setCurvatureTol(.00018);
+                        double curvatureTol = paramterHandler.getcurvatureTol();
+                        if (Math.Abs(slopes[i]) <= curvatureTol)
                         {
-                            OpenDRIVERoadGeometryLine line = new OpenDRIVERoadGeometryLine();
-                            roadGeometry.Items[0] = line;
+                            if (Math.Abs((curvatureVector_filtered[junctionPoints.Item2[i + 1]] + curvatureVector_filtered[junctionPoints.Item2[i]])/2) <= .005)
+                            {
+                                OpenDRIVERoadGeometryLine line = new OpenDRIVERoadGeometryLine();
+                                roadGeometry.Items[0] = line;
+                            }
+                            else
+                            {
+                                OpenDRIVERoadGeometryArc arc = new OpenDRIVERoadGeometryArc();
+                                arc.curvature = curvatureVector_filtered[junctionPoints.Item2[i]];
+                                roadGeometry.Items[0] = arc;
+                            }
+
                         }
-                        if (slopes[i] <= .005 && curvatureVector[junctionPoints.Item2[i]] > .005)
-                        {
-                            OpenDRIVERoadGeometryArc arc = new OpenDRIVERoadGeometryArc();
-                            arc.curvature = curvatureVector[junctionPoints.Item2[i]];
-                            roadGeometry.Items[0] = arc;
-                        }
-                        if (slopes[i] > .005)
+                        if (Math.Abs(slopes[i]) > curvatureTol)
                         {
                             OpenDRIVERoadGeometrySpiral spiral = new OpenDRIVERoadGeometrySpiral();
-                            spiral.curvStart = curvatureVector[junctionPoints.Item2[i]];
-                            spiral.curvEnd = curvatureVector[junctionPoints.Item2[i+1]];
+                            spiral.curvStart = curvatureVector_filtered[junctionPoints.Item2[i]];
+                            spiral.curvEnd = curvatureVector_filtered[junctionPoints.Item2[i+1]];
                             roadGeometry.Items[0] = spiral;
                         }
                         odRoad.planView[i] = roadGeometry;
                     }
                     od.road[c] = odRoad;
-                    CurvatureDistanceChart curvatureDistanceChart = new CurvatureDistanceChart(curvatureVector, distanceVector, junction_Points_x, junction_Points_y);
+                    CurvatureDistanceChart curvatureDistanceChart = new CurvatureDistanceChart(curvatureVector,curvatureVector_filtered, distanceVector, junction_Points_x, junction_Points_y);
 
                 }
                 else
@@ -408,6 +435,30 @@ namespace ConsoleApp1
             return odRoad;
         }
     }
+    public class getParamter {
+        public double alpha { get; set; }
+        public double curvatureTol { get; set; }
+
+        public void setAlpha(double value)
+        {
+            this.alpha = value;
+        }
+        public double getAlpha()
+        {
+            return this.alpha;
+        }
+        public void setCurvatureTol(double value)
+        {
+            this.curvatureTol = value;
+        }
+        public double getcurvatureTol()
+        {
+            return this.curvatureTol;
+        }
+    }
+   
+
+
 
 }
 

@@ -32,6 +32,7 @@
             System.Windows.Forms.DataVisualization.Charting.Legend legend1 = new System.Windows.Forms.DataVisualization.Charting.Legend();
             System.Windows.Forms.DataVisualization.Charting.Series series1 = new System.Windows.Forms.DataVisualization.Charting.Series();
             System.Windows.Forms.DataVisualization.Charting.Series series2 = new System.Windows.Forms.DataVisualization.Charting.Series();
+            System.Windows.Forms.DataVisualization.Charting.Series series3 = new System.Windows.Forms.DataVisualization.Charting.Series();
             this.chart1 = new System.Windows.Forms.DataVisualization.Charting.Chart();
 
 
@@ -60,12 +61,26 @@
             series2.Legend = "Legend1";
             series2.Name = "Junctions";
             series2.Points.DataBindXY(this.junctionPoints_x, this.junctionPoints_y);
-            series2.MarkerStyle = System.Windows.Forms.DataVisualization.Charting.MarkerStyle.Triangle;
-            series2.MarkerColor = System.Drawing.Color.Green;
+            series2.MarkerStyle = System.Windows.Forms.DataVisualization.Charting.MarkerStyle.Cross;
+
+            series2.MarkerColor = System.Drawing.Color.Black;
             this.chart1.Series.Add(series2);
             this.chart1.Size = new System.Drawing.Size(832, 505);
             this.chart1.TabIndex = 0;
             this.chart1.Text = "chart1";
+
+            chartArea1.Name = "ChartArea1";
+            legend1.Name = "Legend1";
+            this.chart1.Location = new System.Drawing.Point(12, 12);
+            this.chart1.Name = "chart1";
+            series3.ChartArea = "ChartArea1";
+            series3.ChartType = System.Windows.Forms.DataVisualization.Charting.SeriesChartType.Line;
+            series3.Legend = "Legend1";
+            series3.Name = "filtered curvature";
+            series3.Points.DataBindXY(this.distanceVector, this.curvatureVector_filtered);
+            series3.MarkerStyle = System.Windows.Forms.DataVisualization.Charting.MarkerStyle.Cross;
+            series3.MarkerColor = System.Drawing.Color.Blue;
+            this.chart1.Series.Add(series3);
             // 
             // CurvatureDistanceChart
             // 
